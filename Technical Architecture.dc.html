@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+body { margin:0; background:#f2efe9; color:#23242d; font-family:'Figtree',sans-serif; -webkit-font-smoothing:antialiased; }
+a { color:#d84a10; text-decoration:none; }
+a:hover { color:#ff6120; text-decoration:underline; }
+</style>
+</helmet>
+
+<div style="max-width:1180px; margin:0 auto; padding:48px 40px 96px 40px; display:flex; flex-direction:column; gap:48px">
+
+  <!-- header -->
+  <div style="display:flex; flex-direction:column; gap:16px">
+    <div style="display:flex; align-items:center; gap:12px; font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:0.08em; text-transform:uppercase; color:#8a8578">
+      <span style="background:#23242d; color:#fff; padding:4px 10px; border-radius:3px; font-weight:600">Technical annex</span>
+      <span>Tilli × EEF · EdTech Implementation Companion · July 2026</span>
+    </div>
+    <h1 style="margin:0; font-size:40px; font-weight:800; letter-spacing:-0.02em; line-height:1.12; max-width:860px">How the backend serves the two user journeys: and how PII never reaches the model</h1>
+    <p style="margin:0; font-size:17px; line-height:1.55; color:#4c4d58; max-width:800px">This annex accompanies the <a href="EEF Implementation Companion Mockup.dc.html">UI mockup</a>. It shows the shared system architecture, how each of the two demonstrated journeys flows through it, and the privacy pipeline that detects and removes personal data an educator might share.</p>
+  </div>
+
+  <!-- ===== 1. system architecture ===== -->
+  <div style="display:flex; flex-direction:column; gap:20px">
+    <div style="border-top:3px solid #ff6120; padding-top:20px">
+      <div style="font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:0.08em; text-transform:uppercase; color:#d84a10; font-weight:600; margin-bottom:6px">1 · System architecture</div>
+      <h2 style="margin:0; font-size:26px; font-weight:800">One pipeline, four journeys, zero product database</h2>
+    </div>
+    <div style="background:#fff; border:1px solid #ddd8ce; border-radius:10px; padding:32px; display:flex; flex-direction:column; gap:18px">
+      <div style="display:grid; grid-template-columns:1fr 44px 1fr 44px 1fr; gap:0; align-items:stretch">
+        <div style="background:#fbfaf7; border:1.5px solid #23242d; border-radius:10px; padding:18px 20px; display:flex; flex-direction:column; gap:6px">
+          <div style="font-family:'IBM Plex Mono',monospace; font-size:10.5px; letter-spacing:0.06em; text-transform:uppercase; color:#8a8578">Presentation</div>
+          <div style="font-weight:700; font-size:15px">Craft CMS plugin</div>
+          <div style="font-size:12.5px; color:#4c4d58; line-height:1.5">Native module in the EEF website. Journey UI, stage tracker, plan editor. No separate domain, login or cookies beyond EEF's own.</div>
+        </div>
+        <div style="display:flex; align-items:center; justify-content:center; font-size:20px; color:#c9c4b8">→</div>
+        <div style="background:#fff8f4; border:1.5px solid #ff6120; border-radius:10px; padding:18px 20px; display:flex; flex-direction:column; gap:6px">
+          <div style="font-family:'IBM Plex Mono',monospace; font-size:10.5px; letter-spacing:0.06em; text-transform:uppercase; color:#d84a10">Safety boundary</div>
+          <div style="font-weight:700; font-size:15px">PII redaction gateway</div>
+          <div style="font-size:12.5px; color:#4c4d58; line-height:1.5">Every user input passes through detection + redaction <strong>before</strong> orchestration or any model call. Detailed in §3.</div>
+        </div>
+        <div style="display:flex; align-items:center; justify-content:center; font-size:20px; color:#c9c4b8">→</div>
+        <div style="background:#fbfaf7; border:1.5px solid #23242d; border-radius:10px; padding:18px 20px; display:flex; flex-direction:column; gap:6px">
+          <div style="font-family:'IBM Plex Mono',monospace; font-size:10.5px; letter-spacing:0.06em; text-transform:uppercase; color:#8a8578">Orchestration</div>
+          <div style="font-weight:700; font-size:15px">Journey controller</div>
+          <div style="font-size:12.5px; color:#4c4d58; line-height:1.5">Deterministic state machine over Explore → Prepare → Deliver → Sustain. The application decides the next step: never the model.</div>
+        </div>
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 44px 1fr 44px 1fr; gap:0; align-items:stretch">
+        <div style="background:#fbfaf7; border:1px solid #ddd8ce; border-radius:10px; padding:18px 20px; display:flex; flex-direction:column; gap:6px">
+          <div style="font-family:'IBM Plex Mono',monospace; font-size:10.5px; letter-spacing:0.06em; text-transform:uppercase; color:#8a8578">Retrieval</div>
+          <div style="font-weight:700; font-size:15px">EEF evidence base (RAG)</div>
+          <div style="font-size:12.5px; color:#4c4d58; line-height:1.5">EEF publications chunked with implementation-stage, mechanism and evidence-strength metadata. Gemini embeddings (768-dim) in pgvector. Content updates via a documented pipeline: no code changes.</div>
+        </div>
+        <div style="display:flex; align-items:center; justify-content:center; font-size:20px; color:#c9c4b8">→</div>
+        <div style="background:#fbfaf7; border:1px solid #ddd8ce; border-radius:10px; padding:18px 20px; display:flex; flex-direction:column; gap:6px">
+          <div style="font-family:'IBM Plex Mono',monospace; font-size:10.5px; letter-spacing:0.06em; text-transform:uppercase; color:#8a8578">Generation</div>
+          <div style="font-weight:700; font-size:15px">Gemini 2.5 Flash</div>
+          <div style="font-size:12.5px; color:#4c4d58; line-height:1.5">Answers only from retrieved EEF passages; structured prompts per journey step; temperature-0 classification routes each question. Same model family running in Tilli production today.</div>
+        </div>
+        <div style="display:flex; align-items:center; justify-content:center; font-size:20px; color:#c9c4b8">→</div>
+        <div style="background:#fbfaf7; border:1px solid #ddd8ce; border-radius:10px; padding:18px 20px; display:flex; flex-direction:column; gap:6px">
+          <div style="font-family:'IBM Plex Mono',monospace; font-size:10.5px; letter-spacing:0.06em; text-transform:uppercase; color:#8a8578">Verification</div>
+          <div style="font-weight:700; font-size:15px">Response checker + plan builder</div>
+          <div style="font-size:12.5px; color:#4c4d58; line-height:1.5">Each response checked against its retrieved sources (claim ↔ citation match, hedging on mixed/limited evidence) before display. Accepted content accrues into the structured plan / survey / deck.</div>
+        </div>
+      </div>
+      <div style="background:#f7f5f0; border-radius:8px; padding:12px 16px; font-size:13px; color:#4c4d58; line-height:1.55"><strong style="color:#23242d">What is deliberately absent:</strong> no EdTech product database (so no recommendations are possible), no pupil-level data store, no accounts holding conversation history against a named individual. Session state lives in an anonymous session; the plan is the user's export.</div>
+    </div>
+  </div>
+
+  <!-- ===== 2. the two flows ===== -->
+  <div style="display:flex; flex-direction:column; gap:20px">
+    <div style="border-top:3px solid #ff6120; padding-top:20px">
+      <div style="font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:0.08em; text-transform:uppercase; color:#d84a10; font-weight:600; margin-bottom:6px">2 · Journey execution</div>
+      <h2 style="margin:0; font-size:26px; font-weight:800">How the two demonstrated journeys run through the pipeline</h2>
+    </div>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px">
+      <div style="background:#fff; border:1px solid #ddd8ce; border-radius:10px; padding:26px 28px; display:flex; flex-direction:column; gap:14px">
+        <div>
+          <div style="font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:0.06em; text-transform:uppercase; color:#8a8578; margin-bottom:4px">Use case 1 · school leader</div>
+          <div style="font-weight:800; font-size:18px">Reviewing an existing investment</div>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:10px; font-size:13px; line-height:1.55; color:#4c4d58">
+          <div style="display:flex; gap:10px"><span style="flex-shrink:0; width:20px; height:20px; border-radius:50%; background:#23242d; color:#fff; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center">1</span><span><strong style="color:#23242d">Intake → journey controller</strong> selects the "review" state machine; classifier (temperature 0) tags the problem as <em>maths attainment, KS2</em>.</span></div>
+          <div style="display:flex; gap:10px"><span style="flex-shrink:0; width:20px; height:20px; border-radius:50%; background:#ff6120; color:#fff; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center">2</span><span><strong style="color:#23242d">Free-text answers pass the PII gateway.</strong> "Mrs Hartley runs the Y4 sessions" → "[STAFF-1] runs the Y4 sessions" before the model sees it.</span></div>
+          <div style="display:flex; gap:10px"><span style="flex-shrink:0; width:20px; height:20px; border-radius:50%; background:#23242d; color:#fff; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center">3</span><span><strong style="color:#23242d">Retrieval scoped to Explore</strong> + <em>individualised instruction / digital tutoring</em>: Toolkit strand, EdTech Evidence Review §5, DIY Evaluation Guide. Evidence-strength metadata drives the strong/mixed/limited labels.</span></div>
+          <div style="display:flex; gap:10px"><span style="flex-shrink:0; width:20px; height:20px; border-radius:50%; background:#23242d; color:#fff; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center">4</span><span><strong style="color:#23242d">Assessment-plan module</strong> renders the school's aggregate figures client-side; only cohort-level numbers (never pupil rows) are accepted by the schema. Chart reading is generated against DIY Evaluation Guide passages, so limits of before/after designs are stated.</span></div>
+          <div style="display:flex; gap:10px"><span style="flex-shrink:0; width:20px; height:20px; border-radius:50%; background:#23242d; color:#fff; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center">5</span><span><strong style="color:#23242d">Survey generator</strong> fills reviewed question templates per audience (parent / staff / pupil), reading-age checked; exports to print or Forms. Responses never return to the tool.</span></div>
+          <div style="display:flex; gap:10px"><span style="flex-shrink:0; width:20px; height:20px; border-radius:50%; background:#23242d; color:#fff; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center">6</span><span><strong style="color:#23242d">Plan builder → outputs.</strong> The accrued structured plan renders as document (PDF/Word) or SLT briefing deck (PPTX) from the same source of truth: citations and uncertainty labels carry over mechanically.</span></div>
+        </div>
+      </div>
+      <div style="background:#fff; border:1px solid #ddd8ce; border-radius:10px; padding:26px 28px; display:flex; flex-direction:column; gap:14px">
+        <div>
+          <div style="font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:0.06em; text-transform:uppercase; color:#8a8578; margin-bottom:4px">Use case 3 · classroom practitioner</div>
+          <div style="font-weight:800; font-size:18px">Exploring GenAI without a specific idea</div>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:10px; font-size:13px; line-height:1.55; color:#4c4d58">
+          <div style="display:flex; gap:10px"><span style="flex-shrink:0; width:20px; height:20px; border-radius:50%; background:#23242d; color:#fff; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center">1</span><span><strong style="color:#23242d">Intake → "explore AI" state machine.</strong> Because no problem is stated, the controller runs a narrowing sequence first: the model cannot skip to suggestions.</span></div>
+          <div style="display:flex; gap:10px"><span style="flex-shrink:0; width:20px; height:20px; border-radius:50%; background:#ff6120; color:#fff; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center">2</span><span><strong style="color:#23242d">PII gateway on every turn.</strong> If the teacher pastes a pupil's paragraph as an example, names and identifying details are stripped and flagged back to the teacher as a teachable moment.</span></div>
+          <div style="display:flex; gap:10px"><span style="flex-shrink:0; width:20px; height:20px; border-radius:50%; background:#23242d; color:#fff; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center">3</span><span><strong style="color:#23242d">Dual retrieval:</strong> pedagogy corpus (Teacher Feedback guidance, Improving Literacy KS2) <em>and</em> emerging-tech corpus (EdTech Evidence Review). Different evidence-strength metadata keeps the two visibly distinct in the response.</span></div>
+          <div style="display:flex; gap:10px"><span style="flex-shrink:0; width:20px; height:20px; border-radius:50%; background:#23242d; color:#fff; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center">4</span><span><strong style="color:#23242d">Verification enforces hedging:</strong> claims mapped to limited-evidence sources must carry uncertainty language, or the response is regenerated. A "non-tech alternative" slot is mandatory in this journey's plan schema.</span></div>
+          <div style="display:flex; gap:10px"><span style="flex-shrink:0; width:20px; height:20px; border-radius:50%; background:#23242d; color:#fff; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center">5</span><span><strong style="color:#23242d">Trial-plan builder</strong> outputs a bounded pilot: scope, success measures, stop conditions, fallback: plus the data-hygiene checklist injected from EEF/DfE guidance, not generated freely.</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 3. PII pipeline ===== -->
+  <div style="display:flex; flex-direction:column; gap:20px">
+    <div style="border-top:3px solid #ff6120; padding-top:20px">
+      <div style="font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:0.08em; text-transform:uppercase; color:#d84a10; font-weight:600; margin-bottom:6px">3 · Privacy &amp; PII pipeline</div>
+      <h2 style="margin:0; font-size:26px; font-weight:800">Detect, redact, disclose: before any model call</h2>
+      <p style="margin:10px 0 0 0; font-size:15px; line-height:1.6; color:#4c4d58; max-width:780px">Educators will occasionally share more than they intend: a pupil's name in an anecdote, a colleague's email, a pasted mark sheet. The gateway assumes this <em>will</em> happen and makes it harmless. This mirrors the UNICEF-vetted compliance processes we run in AskTilli production.</p>
+    </div>
+    <div style="background:#fff; border:1px solid #ddd8ce; border-radius:10px; padding:32px; display:flex; flex-direction:column; gap:22px">
+      <div style="display:grid; grid-template-columns:1fr 40px 1fr 40px 1fr 40px 1fr; align-items:stretch">
+        <div style="background:#fbfaf7; border:1px solid #ddd8ce; border-radius:10px; padding:16px 18px; display:flex; flex-direction:column; gap:5px">
+          <div style="font-weight:700; font-size:14px">1 · Detect</div>
+          <div style="font-size:12.5px; color:#4c4d58; line-height:1.5">Layered detection: deterministic patterns (emails, phones, postcodes, UPN/ULN formats) + NER for names of people and schools + a temperature-0 LLM pass for contextual identifiers ("the only Polish-speaking boy in Y4"). Runs in-region; nothing leaves the boundary yet.</div>
+        </div>
+        <div style="display:flex; align-items:center; justify-content:center; font-size:18px; color:#c9c4b8">→</div>
+        <div style="background:#fbfaf7; border:1px solid #ddd8ce; border-radius:10px; padding:16px 18px; display:flex; flex-direction:column; gap:5px">
+          <div style="font-weight:700; font-size:14px">2 · Redact</div>
+          <div style="font-size:12.5px; color:#4c4d58; line-height:1.5">Detected spans replaced with typed placeholders: [PUPIL-1], [STAFF-1], [SCHOOL], [EMAIL]: preserving meaning for the conversation while removing identity. Consistent within a session so the dialogue stays coherent.</div>
+        </div>
+        <div style="display:flex; align-items:center; justify-content:center; font-size:18px; color:#c9c4b8">→</div>
+        <div style="background:#fbfaf7; border:1px solid #ddd8ce; border-radius:10px; padding:16px 18px; display:flex; flex-direction:column; gap:5px">
+          <div style="font-weight:700; font-size:14px">3 · Disclose</div>
+          <div style="font-size:12.5px; color:#4c4d58; line-height:1.5">The user sees what was removed: "We removed 1 pupil name before processing." Transparency doubles as data-protection education: especially in the GenAI journey, where safe habits are part of the outcome.</div>
+        </div>
+        <div style="display:flex; align-items:center; justify-content:center; font-size:18px; color:#c9c4b8">→</div>
+        <div style="background:#fff8f4; border:1.5px solid #ff6120; border-radius:10px; padding:16px 18px; display:flex; flex-direction:column; gap:5px">
+          <div style="font-weight:700; font-size:14px">4 · Only then: model</div>
+          <div style="font-size:12.5px; color:#4c4d58; line-height:1.5">The redacted text is what reaches retrieval and Gemini. Raw input is never logged, never embedded, never used for training. Placeholders are re-substituted client-side only where the user's own plan needs them.</div>
+        </div>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:10px">
+        <div style="font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:0.06em; text-transform:uppercase; color:#8a8578">Worked example: from the use case 1 conversation</div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px">
+          <div style="border:1px solid #ddd8ce; border-radius:8px; padding:14px 16px; display:flex; flex-direction:column; gap:6px">
+            <div style="font-size:11.5px; font-weight:700; color:#8a8578">Educator types</div>
+            <div style="font-family:'IBM Plex Mono',monospace; font-size:12px; line-height:1.6; color:#23242d">"Jayden M in 4B has barely used it: his mum (07700 900123) says the login never works at home."</div>
+          </div>
+          <div style="border:1.5px solid #ff6120; background:#fff8f4; border-radius:8px; padding:14px 16px; display:flex; flex-direction:column; gap:6px">
+            <div style="font-size:11.5px; font-weight:700; color:#d84a10">Model receives</div>
+            <div style="font-family:'IBM Plex Mono',monospace; font-size:12px; line-height:1.6; color:#23242d">"[PUPIL-1] in [CLASS] has barely used it: their parent ([PHONE]) says the login never works at home."</div>
+          </div>
+        </div>
+        <div style="font-size:12.5px; color:#4c4d58; line-height:1.55">The pedagogical signal: a home-access barrier: survives intact and feeds the equity watchpoints in the plan. The identity does not.</div>
+      </div>
+      <div style="border-top:1px solid #ecebe6; padding-top:18px; display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px">
+        <div style="display:flex; flex-direction:column; gap:5px">
+          <div style="font-weight:700; font-size:13.5px">UK GDPR posture</div>
+          <div style="font-size:12.5px; color:#4c4d58; line-height:1.5">Data minimisation by architecture: no accounts, no pupil records, anonymous sessions, UK/EU data residency, DPIA delivered at mobilisation and maintained per release.</div>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:5px">
+          <div style="font-weight:700; font-size:13.5px">Retention</div>
+          <div style="font-size:12.5px; color:#4c4d58; line-height:1.5">Session state expires after the session ends; the exported plan belongs to the school. Redaction-event counts (not contents) are retained as an aggregate safety metric for the EEF.</div>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:5px">
+          <div style="font-weight:700; font-size:13.5px">Assurance</div>
+          <div style="font-size:12.5px; color:#4c4d58; line-height:1.5">Red-team suite of adversarial PII inputs runs on every release; recall on the suite reported to the EEF alongside the accuracy rubric (proposal, Schedule B).</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="border-top:1px solid #ddd8ce; padding-top:20px; display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap">
+    <div style="font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:#8a8578">Tilli × EEF · technical annex to the UI mockup · indicative architecture for tender evaluation</div>
+    <a href="EEF Implementation Companion Mockup.dc.html" style="font-weight:700; font-size:14px">← Back to the UI mockup</a>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>
